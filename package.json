@@ -8,11 +8,9 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint",
-    "deploy": "hardhat run scripts/deploy.ts --network baseSepolia --config hardhat.config.cjs"
+    "lint": "next lint"
   },
   "dependencies": {
-    "@openzeppelin/contracts": "^5.0.2",
     "@rainbow-me/rainbowkit": "^2.1.0",
     "@tanstack/react-query": "^5.32.0",
     "autoprefixer": "^10.4.19",
@@ -29,7 +27,6 @@
     "wagmi": "^2.9.0"
   },
   "devDependencies": {
-    "@nomicfoundation/edr-win32-arm64-msvc": "^0.3.1",
     "@nomicfoundation/hardhat-ethers": "^3.0.6",
     "@types/node": "^20.12.12",
     "@types/react": "^18.3.2",

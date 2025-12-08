@@ -1,3 +1,6 @@
+// Bypass platform detection for ARM64
+process.env.HARDHAT_PLATFORM = "win32-x64";
+
 require("@nomicfoundation/hardhat-ethers");
 require("dotenv").config();
 
