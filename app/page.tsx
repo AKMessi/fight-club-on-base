@@ -14,10 +14,7 @@ import { BattleArena } from "@/components/BattleArena";
 import type { BotConfig } from "@/lib/engine";
 
 // ---------------------------------------------------------
-// 1. DEPLOYMENT INSTRUCTIONS:
-//    - Deploy "FightClub.sol" using Remix IDE (Injected Provider)
-//    - Copy the deployed address from Remix
-//    - Paste it below inside the quotes
+// Contract Address (Ensure this is the correct address from Remix)
 // ---------------------------------------------------------
 const CONTRACT_ADDRESS = "0xd007D58E03F66162A5AFAeF16A4ca8E5BBE658c6";
 
@@ -49,7 +46,6 @@ export default function DashboardPage() {
     isLoading: isWriteLoading,
     error: writeError
   } = useWriteContract();
-  
   const {
     isLoading: isConfirming,
     isSuccess: isConfirmed,
