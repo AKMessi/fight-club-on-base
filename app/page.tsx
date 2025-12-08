@@ -14,7 +14,7 @@ import { BattleArena } from "@/components/BattleArena";
 import type { BotConfig } from "@/lib/engine";
 
 // ---------------------------------------------------------
-// Contract Address (Ensure this is the correct address from Remix)
+// Contract Address (Your deployed address from Remix)
 // ---------------------------------------------------------
 const CONTRACT_ADDRESS = "0xd007D58E03F66162A5AFAeF16A4ca8E5BBE658c6";
 
