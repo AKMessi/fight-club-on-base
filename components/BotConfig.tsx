@@ -104,35 +104,3 @@ export function BotConfig({ onDeploy }: BotConfigProps) {
     </section>
   );
 }
-  return (
-    <section className="glass-panel p-6 space-y-4">
-      <header className="flex items-center gap-2">
-        <SlidersHorizontal className="h-5 w-5 text-cyber-accent" />
-        <h2 className="text-lg font-semibold uppercase tracking-widest">
-          Bot Config
-        </h2>
-      </header>
-
-      <div className="space-y-4">
-        <SliderRow label="Risk Level" minLabel="Safe" maxLabel="Degen" />
-        <SliderRow
-          label="Trade Frequency"
-          minLabel="Low"
-          maxLabel="High"
-          initial={30}
-        />
-        <SliderRow
-          label="Asset Focus"
-          minLabel="ETH/BTC"
-          maxLabel="Memecoins"
-          initial={65}
-        />
-      </div>
-
-      <button className="mt-4 w-full rounded-md border border-cyber-neon/50 bg-cyber-neon/10 py-3 text-sm font-semibold uppercase tracking-wide text-cyber-neon transition hover:bg-cyber-neon hover:text-black">
-        Save Loadout
-      </button>
-    </section>
-  );
-}
-
