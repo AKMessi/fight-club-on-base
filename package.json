@@ -2,7 +2,7 @@
   "name": "fight-club",
   "version": "0.1.0",
   "private": true,
-  "type": "module",
+  "packageManager": "pnpm@9.1.0",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
@@ -39,5 +39,17 @@
     "hardhat": "^2.22.3",
     "ts-node": "^10.9.2",
     "typescript": "^5.4.5"
+  },
+  "overrides": {
+    "bufferutil": "^4.0.8",
+    "utf-8-validate": "^6.0.3"
+  },
+  "pnpm": {
+    "neverBuiltDependencies": [
+      "bufferutil",
+      "utf-8-validate",
+      "keccak",
+      "secp256k1"
+    ]
   }
 }
