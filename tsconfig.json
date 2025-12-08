@@ -22,7 +22,7 @@
       "@/*": ["./*"]
     }
   },
-  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts", "hardhat.config.ts", "scripts"],
+  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts", "hardhat.config.cjs", "scripts"],
   "exclude": ["node_modules"],
   "ts-node": {
     "compilerOptions": {

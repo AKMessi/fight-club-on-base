@@ -2,7 +2,7 @@
 pragma solidity ^0.8.24;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
-import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
+import "@openzeppelin/contracts/utils/ReentrancyGuard.sol"; // <--- FIXED PATH
 
 contract FightClub is Ownable, ReentrancyGuard {
     uint256 public constant entryFee = 0.001 ether;
@@ -10,6 +10,7 @@ contract FightClub is Ownable, ReentrancyGuard {
 
     event PlayerJoined(address indexed player);
 
+    // Pass msg.sender to Ownable constructor
     constructor() Ownable(msg.sender) {}
 
     function enterArena() external payable {
@@ -34,4 +35,3 @@ contract FightClub is Ownable, ReentrancyGuard {
         playerBalance[winner] += amount;
     }
 }
-
