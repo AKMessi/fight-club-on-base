@@ -43,11 +43,11 @@ export default function DashboardPage() {
   const {
     data: hash,
     writeContract,
-    isLoading: isWriteLoading,
+    isPending: isWriteLoading, // FIXED: Changed from isLoading to isPending
     error: writeError
   } = useWriteContract();
   const {
-    isLoading: isConfirming,
+    isPending: isConfirming, // FIXED: Changed from isLoading to isPending
     isSuccess: isConfirmed,
     error: confirmError
   } = useWaitForTransactionReceipt({
@@ -81,6 +81,7 @@ export default function DashboardPage() {
   const handleReset = () => setGameState("CONFIG");
   const handleComplete = () => setGameState("RESULT");
 
+  // isProcessing uses the newly defined isWriteLoading and isConfirming
   const isProcessing = isWriteLoading || isConfirming;
   const txError = writeError || confirmError;
 
