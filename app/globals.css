@@ -1,0 +1,54 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: radial-gradient(circle at 20% 20%, rgba(0, 255, 127, 0.08), transparent 30%),
+    radial-gradient(circle at 80% 0%, rgba(0, 255, 255, 0.06), transparent 25%),
+    #050505;
+  color: #00ff7f;
+  font-family: "IBM Plex Mono", "Fira Code", "Space Mono", monospace;
+  min-height: 100vh;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+}
+
+a {
+  color: #00ffcc;
+  text-decoration: none;
+}
+
+a:hover {
+  text-shadow: 0 0 8px rgba(0, 255, 204, 0.75);
+}
+
+.glass-panel {
+  background: rgba(15, 15, 16, 0.85);
+  border: 1px solid rgba(0, 255, 127, 0.3);
+  border-radius: 12px;
+  box-shadow: 0 0 25px rgba(0, 255, 127, 0.15);
+  backdrop-filter: blur(10px);
+}
+
+.cyber-grid {
+  background-image: linear-gradient(
+      rgba(0, 255, 127, 0.08) 1px,
+      transparent 1px
+    ),
+    linear-gradient(90deg, rgba(0, 255, 204, 0.08) 1px, transparent 1px);
+  background-size: 32px 32px;
+}
+
+.accent-text {
+  color: #00ffcc;
+}
+
