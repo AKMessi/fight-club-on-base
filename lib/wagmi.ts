@@ -1,10 +1,9 @@
-import { getDefaultConfig } from "@rainbow-me/rainbowkit";
-import { base } from "wagmi/chains";
+import { getDefaultConfig } from '@rainbow-me/rainbowkit';
+import { baseSepolia } from 'wagmi/chains';
 
-export const wagmiConfig = getDefaultConfig({
-  appName: "Fight Club",
-  projectId: process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID || "demo",
-  chains: [base],
-  ssr: true
+export const config = getDefaultConfig({
+  appName: 'Fight Club',
+  projectId: process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID || 'demo',
+  chains: [baseSepolia],
+  ssr: true,
 });
-

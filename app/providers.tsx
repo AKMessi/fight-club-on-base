@@ -1,30 +1,29 @@
-/* eslint-disable @next/next/no-page-custom-font */
-"use client";
+'use client';
 
-import "@rainbow-me/rainbowkit/styles.css";
-import { RainbowKitProvider, darkTheme } from "@rainbow-me/rainbowkit";
-import { ReactNode } from "react";
-import { WagmiConfig } from "wagmi";
-import { wagmiConfig } from "@/lib/wagmi";
+import * as React from 'react';
+import {
+  RainbowKitProvider,
+  darkTheme,
+} from '@rainbow-me/rainbowkit';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { WagmiProvider } from 'wagmi';
+import { config } from '../lib/wagmi';
+import '@rainbow-me/rainbowkit/styles.css';
 
-type Props = {
-  children: ReactNode;
-};
+const queryClient = new QueryClient();
 
-export function Providers({ children }: Props) {
+export function Providers({ children }: { children: React.ReactNode }) {
   return (
-    <WagmiConfig config={wagmiConfig}>
-      <RainbowKitProvider
-        theme={darkTheme({
+    <WagmiProvider config={config}>
+      <QueryClientProvider client={queryClient}>
+        <RainbowKitProvider theme={darkTheme({
           accentColor: "#00ff7f",
           accentColorForeground: "#050505",
           borderRadius: "medium"
-        })}
-        modalSize="compact"
-      >
-        {children}
-      </RainbowKitProvider>
-    </WagmiConfig>
+        })}>
+          {children}
+        </RainbowKitProvider>
+      </QueryClientProvider>
+    </WagmiProvider>
   );
 }
-
