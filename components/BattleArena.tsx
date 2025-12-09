@@ -1,19 +1,31 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { Zap, Clock, Trophy, AlertTriangle } from "lucide-react";
 import type { BotConfig } from "@/lib/engine";
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:3001";
 
-type BattleArenaProps = {
+type BattleInfo = {
+  battleId: number;
+  playerCount: number;
+  prizePool: string;
+  startTime: number;
+  endTime: number;
+  isActive: boolean;
+  isFinalized: boolean;
+  winner: string;
+  winningPnL?: number;
+};
+
+export interface BattleArenaProps {
   battleId: number;
   config: BotConfig;
   onComplete: () => void;
-};
+}
 
-export function BattleArena({ battleId, config, onComplete }: BattleArenaProps) {
-  const [battleInfo, setBattleInfo] = useState<any>(null);
+export const BattleArena: React.FC<BattleArenaProps> = ({ battleId, config, onComplete }) => {
+  const [battleInfo, setBattleInfo] = useState<BattleInfo | null>(null);
   const [timeRemaining, setTimeRemaining] = useState<number>(0);
 
   useEffect(() => {
@@ -71,12 +83,14 @@ export function BattleArena({ battleId, config, onComplete }: BattleArenaProps) 
   }
 
   if (battleInfo.isFinalized) {
-    const isWinner = battleInfo.winner.toLowerCase() === config.assetFocus.toLowerCase(); // Placeholder
+    // Note: We can't determine if current user is winner without their address
+    // This is a placeholder - in production, you'd pass the user's address as a prop
+    const hasWinner = battleInfo.winner && battleInfo.winner !== '0x0000000000000000000000000000000000000000';
 
     return (
       <div className="glass-panel p-6">
         <header className="flex items-center gap-2 mb-4">
-          {isWinner ? (
+          {hasWinner ? (
             <Trophy className="h-6 w-6 text-yellow-400" />
           ) : (
             <AlertTriangle className="h-6 w-6 text-red-400" />
@@ -87,19 +101,25 @@ export function BattleArena({ battleId, config, onComplete }: BattleArenaProps) 
         </header>
 
         <div className={`p-6 rounded-lg text-center ${
-          isWinner 
+          hasWinner 
             ? 'bg-green-600/20 border-2 border-green-400/50' 
             : 'bg-red-600/20 border-2 border-red-400/50'
         }`}>
           <p className="text-2xl font-bold mb-2">
-            {isWinner ? '🏆 VICTORY!' : '💀 DEFEATED'}
+            {hasWinner ? '🏆 BATTLE FINISHED!' : '💀 BATTLE ENDED'}
           </p>
-          <p className="text-sm text-cyber-muted">
-            Winner: {battleInfo.winner.slice(0, 8)}...
-          </p>
-          <p className="text-sm text-cyber-muted mt-1">
-            Final P&L: {(battleInfo.winningPnL / 100).toFixed(2)}%
-          </p>
+          {hasWinner && (
+            <>
+              <p className="text-sm text-cyber-muted">
+                Winner: {battleInfo.winner.slice(0, 8)}...{battleInfo.winner.slice(-6)}
+              </p>
+              {battleInfo.winningPnL !== undefined && (
+                <p className="text-sm text-cyber-muted mt-1">
+                  Final P&L: {(battleInfo.winningPnL / 100).toFixed(2)}%
+                </p>
+              )}
+            </>
+          )}
         </div>
 
         <div className="mt-4 text-center">
@@ -170,4 +190,4 @@ export function BattleArena({ battleId, config, onComplete }: BattleArenaProps) 
       </div>
     </div>
   );
-}
+};

@@ -22,12 +22,28 @@ export type Position = {
   entryTime: number;
 };
 
+export type TradeRecord =
+  | {
+      action: 'BUY';
+      asset: string;
+      price: number;
+      amount: number;
+      timestamp: number;
+    }
+  | {
+      action: 'SELL';
+      asset: string;
+      price: number;
+      profit: number;
+      timestamp: number;
+    };
+
 export class TradingAgent {
   public playerId: string;
   public config: BotConfig;
   public portfolio: number = 100; // Start with $100
   public positions: Position[] = [];
-  public tradeHistory: any[] = [];
+  public tradeHistory: TradeRecord[] = [];
   public pnl: number = 0; // Percentage
 
   constructor(playerId: string, config: BotConfig) {

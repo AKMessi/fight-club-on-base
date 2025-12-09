@@ -14,7 +14,8 @@ import { BattleArena } from "@/components/BattleArena";
 import type { BotConfig } from "@/lib/engine";
 
 // UPDATED: Use environment variable
-const CONTRACT_ADDRESS = (process.env.NEXT_PUBLIC_CONTRACT_ADDRESS || "0xd007D58E03F66162A5AFAeF16A4ca8E5BBE658c6") as `0x${string}`;
+const CONTRACT_ADDRESS = (process.env.NEXT_PUBLIC_CONTRACT_ADDRESS ||
+  "0x...PASTE_YOUR_REMIX_ADDRESS_HERE...") as `0x${string}`;
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:3001";
 
 const CONTRACT_ABI = [
@@ -34,19 +35,31 @@ const CONTRACT_ABI = [
 export default function DashboardPage() {
   type GameState = "CONFIG" | "WAITING" | "BATTLE" | "RESULT";
 
-  const { isConnected, address } = useAccount();
+  const { isConnected } = useAccount();
   const [gameState, setGameState] = useState<GameState>("CONFIG");
   const [currentConfig, setCurrentConfig] = useState<BotConfig>({
     riskLevel: 50,
     tradeFrequency: 40,
     assetFocus: "Memecoin"
   });
-  const [battleInfo, setBattleInfo] = useState<any>(null);
+  type BattleInfo = {
+    battleId: number;
+    playerCount: number;
+    prizePool: string;
+    startTime: number;
+    endTime: number;
+    isActive: boolean;
+    isFinalized: boolean;
+    winner: string;
+    players: string[];
+  };
+
+  const [battleInfo, setBattleInfo] = useState<BattleInfo | null>(null);
 
   const {
     data: hash,
     writeContract,
-    isPending: isWriteLoading,
+    isPending: isWritePending,
     error: writeError
   } = useWriteContract();
   
@@ -60,20 +73,29 @@ export default function DashboardPage() {
 
   // Fetch current battle info
   useEffect(() => {
+    let cancelled = false;
     const fetchBattleInfo = async () => {
       try {
         const response = await fetch(`${BACKEND_URL}/api/battle/current`);
-        const data = await response.json();
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        const data = await response.json() as BattleInfo;
+        if (cancelled) return;
         setBattleInfo(data);
       } catch (error) {
-        console.error('Failed to fetch battle info:', error);
+        console.error("Failed to fetch battle info:", error);
+        // Don't set state on error to avoid breaking the UI
       }
     };
 
     fetchBattleInfo();
     const interval = setInterval(fetchBattleInfo, 10000); // Update every 10s
 
-    return () => clearInterval(interval);
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
   }, []);
 
   // Move to waiting state after payment confirms
@@ -82,6 +104,16 @@ export default function DashboardPage() {
       setGameState("WAITING");
     }
   }, [isConfirmed]);
+
+  // Advance into battle/complete states based on backend
+  useEffect(() => {
+    if (battleInfo?.isActive) {
+      setGameState("BATTLE");
+    }
+    if (battleInfo?.isFinalized) {
+      setGameState("RESULT");
+    }
+  }, [battleInfo]);
 
   const handleDeploy = (config: BotConfig) => {
     if (!isConnected) {
@@ -112,9 +144,12 @@ export default function DashboardPage() {
     });
   };
 
-  const handleReset = () => setGameState("CONFIG");
+  const handleReset = () => {
+    setGameState("CONFIG");
+    setBattleInfo(null);
+  };
 
-  const isProcessing = isWriteLoading || isConfirming;
+  const isProcessing = isWritePending || isConfirming;
   const txError = writeError || confirmError;
 
   return (
@@ -207,7 +242,7 @@ export default function DashboardPage() {
 
           {gameState === "BATTLE" && battleInfo && (
             <BattleArena
-              battleId={battleInfo.battleId}
+              battleId={Number(battleInfo.battleId)}
               config={currentConfig}
               onComplete={() => setGameState("RESULT")}
             />

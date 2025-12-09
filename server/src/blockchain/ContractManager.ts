@@ -91,6 +91,12 @@ const CONTRACT_ABI = [
   }
 ] as const;
 
+type PlayerConfig = {
+  riskLevel: number;
+  tradeFrequency: number;
+  assetFocus: 'BlueChip' | 'Layer2' | 'Memecoin';
+};
+
 export class ContractManager {
   private contract: ethers.Contract;
   private provider: ethers.JsonRpcProvider;
@@ -119,73 +125,114 @@ export class ContractManager {
   }
 
   async getCurrentBattleId(): Promise<number> {
-    const battleId = await this.contract.currentBattleId();
-    return Number(battleId);
+    try {
+      const battleId = await this.contract.currentBattleId();
+      return Number(battleId);
+    } catch (error) {
+      console.error('Failed to read currentBattleId:', error);
+      throw error;
+    }
   }
 
-  async getBattleInfo(battleId: number) {
-    const info = await this.contract.getBattleInfo(battleId);
-    return {
-      playerCount: Number(info[0]),
-      prizePool: ethers.formatEther(info[1]),
-      startTime: Number(info[2]),
-      endTime: Number(info[3]),
-      isActive: info[4],
-      isFinalized: info[5],
-      winner: info[6],
-    };
+  async getBattleInfo(battleId: number): Promise<{
+    playerCount: number;
+    prizePool: string;
+    startTime: number;
+    endTime: number;
+    isActive: boolean;
+    isFinalized: boolean;
+    winner: string;
+  }> {
+    try {
+      const info = await this.contract.getBattleInfo(battleId);
+      return {
+        playerCount: Number(info[0]),
+        prizePool: ethers.formatEther(info[1]),
+        startTime: Number(info[2]),
+        endTime: Number(info[3]),
+        isActive: info[4] as boolean,
+        isFinalized: info[5] as boolean,
+        winner: info[6] as string
+      };
+    } catch (error) {
+      console.error(`Failed to get battle info for ${battleId}:`, error);
+      throw error;
+    }
   }
 
   async getBattlePlayers(battleId: number): Promise<string[]> {
-    return await this.contract.getBattlePlayers(battleId);
+    try {
+      return await this.contract.getBattlePlayers(battleId);
+    } catch (error) {
+      console.error(`Failed to get battle players for ${battleId}:`, error);
+      throw error;
+    }
   }
 
-  async getPlayerConfig(battleId: number, playerAddress: string) {
-    const config = await this.contract.getPlayerConfig(battleId, playerAddress);
-    
-    const assetFocusMap = ['BlueChip', 'Layer2', 'Memecoin'] as const;
-    
-    return {
-      riskLevel: Number(config[0]),
-      tradeFrequency: Number(config[1]),
-      assetFocus: assetFocusMap[Number(config[2])],
-    };
+  async getPlayerConfig(battleId: number, playerAddress: string): Promise<PlayerConfig> {
+    try {
+      const config = await this.contract.getPlayerConfig(battleId, playerAddress);
+      const assetFocusMap = ['BlueChip', 'Layer2', 'Memecoin'] as const;
+
+      return {
+        riskLevel: Number(config[0]),
+        tradeFrequency: Number(config[1]),
+        assetFocus: assetFocusMap[Number(config[2])]
+      };
+    } catch (error) {
+      console.error(`Failed to get player config for ${playerAddress}:`, error);
+      throw error;
+    }
   }
 
-  async startBattle(battleId: number) {
+  async startBattle(battleId: number): Promise<void> {
     console.log(`🎬 Starting battle ${battleId} on-chain...`);
-    const tx = await this.contract.startBattle(battleId);
-    await tx.wait();
-    console.log('✅ Battle started on-chain');
+    try {
+      const tx = await this.contract.startBattle(battleId);
+      await tx.wait();
+      console.log('✅ Battle started on-chain');
+    } catch (error) {
+      console.error('Failed to start battle on-chain:', error);
+      throw error;
+    }
   }
 
-  async finalizeBattle(battleId: number, winner: string, pnlBasisPoints: number) {
+  async finalizeBattle(battleId: number, winner: string, pnlBasisPoints: number): Promise<void> {
     console.log(`🏁 Finalizing battle ${battleId}...`);
     console.log(`   Winner: ${winner}`);
     console.log(`   P&L: ${(pnlBasisPoints / 100).toFixed(2)}%`);
 
-    const tx = await this.contract.finalizeBattle(battleId, winner, pnlBasisPoints);
-    const receipt = await tx.wait();
-
-    console.log('✅ Battle finalized!');
-    console.log(`   TX: ${receipt.hash}`);
+    try {
+      const tx = await this.contract.finalizeBattle(battleId, winner, pnlBasisPoints);
+      const receipt = await tx.wait();
+      console.log('✅ Battle finalized!');
+      console.log(`   TX: ${receipt.hash}`);
+    } catch (error) {
+      console.error('Failed to finalize battle:', error);
+      throw error;
+    }
   }
 
-  // Listen for new players joining
-  onPlayerJoined(callback: (battleId: number, player: string, config: any) => void) {
-    this.contract.on('PlayerJoined', (battleId, player, config) => {
+  onPlayerJoined(
+    callback: (battleId: number, player: string, config: PlayerConfig) => void
+  ): void {
+    this.contract.on('PlayerJoined', (battleId: ethers.BigNumberish, player: string, config: any) => {
       callback(Number(battleId), player, {
         riskLevel: Number(config.riskLevel),
         tradeFrequency: Number(config.tradeFrequency),
-        assetFocus: ['BlueChip', 'Layer2', 'Memecoin'][Number(config.assetFocus)],
+        assetFocus: ['BlueChip', 'Layer2', 'Memecoin'][Number(config.assetFocus)] as PlayerConfig['assetFocus']
       });
     });
   }
 
-  // Listen for battle starts
-  onBattleStarted(callback: (battleId: number, startTime: number, playerCount: number) => void) {
-    this.contract.on('BattleStarted', (battleId, startTime, playerCount) => {
-      callback(Number(battleId), Number(startTime), Number(playerCount));
-    });
+  onBattleStarted(
+    callback: (battleId: number, startTime: number, playerCount: number) => void
+  ): void {
+    this.contract.on(
+      'BattleStarted',
+      (battleId: ethers.BigNumberish, startTime: ethers.BigNumberish, playerCount: ethers.BigNumberish) => {
+        callback(Number(battleId), Number(startTime), Number(playerCount));
+      }
+    );
   }
 }

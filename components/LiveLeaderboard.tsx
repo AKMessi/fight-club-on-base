@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Trophy, Users, TrendingUp, TrendingDown, Zap, Clock, DollarSign } from "lucide-react";
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:3001";
@@ -34,6 +34,8 @@ export function LiveLeaderboard() {
   const [isConnected, setIsConnected] = useState(false);
   const [timeRemaining, setTimeRemaining] = useState<number>(0);
   const [lastUpdate, setLastUpdate] = useState<number>(Date.now());
+  const socketRef = useRef<WebSocket | null>(null);
+  const reconnectRef = useRef<NodeJS.Timeout | null>(null);
 
   // Fetch battle info periodically
   useEffect(() => {
@@ -77,67 +79,77 @@ export function LiveLeaderboard() {
 
   // WebSocket connection for real-time updates
   useEffect(() => {
-    let ws: WebSocket | null = null;
-
     const connectWebSocket = () => {
       try {
-        const wsUrl = BACKEND_URL.replace('http', 'ws');
-        ws = new WebSocket(wsUrl);
-
-        ws.onopen = () => {
-          setIsConnected(true);
-          console.log('✅ WebSocket connected to leaderboard');
-        };
-
-        ws.onmessage = (event) => {
-          try {
-            const data = JSON.parse(event.data);
-            
-            if (data.type === 'LEADERBOARD_UPDATE') {
-              setLeaderboard(data.leaderboard);
-              setLastUpdate(Date.now());
-            }
-
-            if (data.type === 'PLAYER_JOINED' && battleInfo) {
-              // Update player count
-              setBattleInfo({
-                ...battleInfo,
-                playerCount: battleInfo.playerCount + 1,
-              });
-            }
-
-            if (data.type === 'BATTLE_STARTED') {
-              // Refetch battle info
-              fetch(`${BACKEND_URL}/api/battle/current`)
-                .then(res => res.json())
-                .then(setBattleInfo);
-            }
-          } catch (error) {
-            console.error('Error parsing WebSocket message:', error);
-          }
-        };
-
-        ws.onerror = (error) => {
-          console.error('WebSocket error:', error);
-          setIsConnected(false);
-        };
-
-        ws.onclose = () => {
-          setIsConnected(false);
-          console.log('❌ WebSocket disconnected, reconnecting in 5s...');
-          setTimeout(connectWebSocket, 5000); // Reconnect after 5 seconds
-        };
+        const url = new URL(BACKEND_URL);
+        // Convert http/https to ws/wss
+        if (url.protocol === "https:") {
+          url.protocol = "wss:";
+        } else if (url.protocol === "http:") {
+          url.protocol = "ws:";
+        }
+        // Add WebSocket path
+        url.pathname = "/ws";
+        socketRef.current = new WebSocket(url.toString());
       } catch (error) {
-        console.error('Failed to connect WebSocket:', error);
-        setTimeout(connectWebSocket, 5000);
+        console.error("Failed to construct WebSocket URL:", error);
+        return;
       }
+
+      const ws = socketRef.current!;
+
+      ws.onopen = () => {
+        setIsConnected(true);
+        console.log("✅ WebSocket connected to leaderboard");
+      };
+
+      ws.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+
+          if (data.type === "LEADERBOARD_UPDATE") {
+            setLeaderboard(data.leaderboard);
+            setLastUpdate(Date.now());
+          }
+
+          if (data.type === "PLAYER_JOINED" && battleInfo) {
+            setBattleInfo({
+              ...battleInfo,
+              playerCount: battleInfo.playerCount + 1
+            });
+          }
+
+          if (data.type === "BATTLE_STARTED") {
+            fetch(`${BACKEND_URL}/api/battle/current`)
+              .then((res) => res.json())
+              .then(setBattleInfo)
+              .catch((err) => console.error("Failed to refresh battle:", err));
+          }
+        } catch (error) {
+          console.error("Error parsing WebSocket message:", error);
+        }
+      };
+
+      ws.onerror = (error) => {
+        console.error("WebSocket error:", error);
+        setIsConnected(false);
+      };
+
+      ws.onclose = () => {
+        setIsConnected(false);
+        console.log("❌ WebSocket disconnected, reconnecting in 5s...");
+        reconnectRef.current = setTimeout(connectWebSocket, 5000);
+      };
     };
 
     connectWebSocket();
 
     return () => {
-      if (ws) {
-        ws.close();
+      if (reconnectRef.current) {
+        clearTimeout(reconnectRef.current);
+      }
+      if (socketRef.current) {
+        socketRef.current.close();
       }
     };
   }, [battleInfo]);
