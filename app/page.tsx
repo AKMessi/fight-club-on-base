@@ -81,7 +81,6 @@ export default function DashboardPage() {
   const handleReset = () => setGameState("CONFIG");
   const handleComplete = () => setGameState("RESULT");
 
-  // isProcessing uses the newly defined isWriteLoading and isConfirming
   const isProcessing = isWriteLoading || isConfirming;
   const txError = writeError || confirmError;
 
