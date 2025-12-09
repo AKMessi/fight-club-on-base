@@ -1,144 +1,173 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Zap, TrendingUp, TrendingDown, RefreshCw, Trophy, AlertTriangle } from "lucide-react";
-import type { BotConfig, BattleResult } from "@/lib/engine";
-import { runBattleSimulation, mockOpponentConfig, getResult } from "@/lib/engine";
+import { Zap, Clock, Trophy, AlertTriangle } from "lucide-react";
+import type { BotConfig } from "@/lib/engine";
+
+const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:3001";
 
 type BattleArenaProps = {
+  battleId: number;
   config: BotConfig;
-  onReset: () => void;
-  onComplete: (result: BattleResult) => void;
+  onComplete: () => void;
 };
 
-const SIMULATION_DURATION = 3000; // 3 seconds for mock battle
-
-export function BattleArena({ config, onReset, onComplete }: BattleArenaProps) {
-  const [progress, setProgress] = useState(0); // 0 to 100
-  const [status, setStatus] = useState<"RUNNING" | "CALCULATING" | "FINISHED">("RUNNING");
-  const [playerScore, setPlayerScore] = useState(0);
-  const [opponentScore, setOpponentScore] = useState(0);
-  const [result, setResult] = useState<BattleResult | null>(null);
+export function BattleArena({ battleId, config, onComplete }: BattleArenaProps) {
+  const [battleInfo, setBattleInfo] = useState<any>(null);
+  const [timeRemaining, setTimeRemaining] = useState<number>(0);
 
   useEffect(() => {
-    if (status !== "RUNNING") return;
+    const fetchBattleInfo = async () => {
+      try {
+        const response = await fetch(`${BACKEND_URL}/api/battle/${battleId}`);
+        const data = await response.json();
+        setBattleInfo(data);
 
-    const interval = setInterval(() => {
-      setProgress((prev) => {
-        if (prev >= 100) {
-          clearInterval(interval);
-          setStatus("CALCULATING");
-          return 100;
+        if (data.endTime > 0) {
+          const remaining = data.endTime - Math.floor(Date.now() / 1000);
+          setTimeRemaining(Math.max(0, remaining));
         }
-        return prev + (100 / (SIMULATION_DURATION / 100)); // Increment every 100ms
-      });
-    }, 100);
+      } catch (error) {
+        console.error('Failed to fetch battle info:', error);
+      }
+    };
+
+    fetchBattleInfo();
+    const interval = setInterval(fetchBattleInfo, 5000);
 
     return () => clearInterval(interval);
-  }, [status]);
+  }, [battleId]);
 
+  // Countdown timer
   useEffect(() => {
-    if (status === "CALCULATING") {
-      // 1. Run deterministic simulation
-      const pScore = runBattleSimulation(config);
-      const oScore = runBattleSimulation(mockOpponentConfig);
-      
-      const finalResult = getResult(pScore, oScore);
-      
-      setPlayerScore(pScore);
-      setOpponentScore(oScore);
-      setResult(finalResult);
-      setStatus("FINISHED");
-      onComplete(finalResult);
-    }
-  }, [status, config, onComplete]);
+    if (timeRemaining <= 0) return;
 
-  const getColorClass = (score: number) => {
-    if (score > 80) return "text-green-400";
-    if (score > 50) return "text-yellow-400";
-    return "text-red-400";
-  };
-  
-  const getIcon = (score: number) => {
-    if (score > 80) return <TrendingUp className="h-4 w-4" />;
-    if (score < 50) return <TrendingDown className="h-4 w-4" />;
-    return <Zap className="h-4 w-4" />;
+    const timer = setInterval(() => {
+      setTimeRemaining(prev => {
+        if (prev <= 1) {
+          clearInterval(timer);
+          onComplete();
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [timeRemaining, onComplete]);
+
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
-  const renderResult = () => {
-    if (!result) return null;
-
-    let message = "";
-    let style = "";
-    let icon = null;
-
-    if (result === "WIN") {
-      message = "VICTORY! Your Agent Dominated the Market.";
-      style = "bg-green-600/20 border-green-400/50 text-green-300";
-      icon = <Trophy className="h-8 w-8" />;
-    } else if (result === "LOSS") {
-      message = "DEFEAT. Your Agent was Liquidated.";
-      style = "bg-red-600/20 border-red-400/50 text-red-300";
-      icon = <AlertTriangle className="h-8 w-8" />;
-    } else {
-      message = "DRAW. Agent performance was too close to call.";
-      style = "bg-yellow-600/20 border-yellow-400/50 text-yellow-300";
-      icon = <AlertTriangle className="h-8 w-8" />;
-    }
-
+  if (!battleInfo) {
     return (
-      <div className={`mt-6 rounded-lg p-6 text-center ${style}`}>
-        <div className="flex justify-center mb-3">{icon}</div>
-        <h3 className="text-xl font-bold uppercase tracking-widest">{message}</h3>
-        <p className="mt-4 text-sm text-cyber-muted">
-          Your Agent Score: <span className={getColorClass(playerScore)}>{playerScore}</span> | Opponent Score: <span className={getColorClass(opponentScore)}>{opponentScore}</span>
-        </p>
-        <button 
-            onClick={onReset}
-            className="mt-6 flex w-full items-center justify-center gap-2 rounded-md border border-white/30 bg-white/10 py-3 text-sm font-semibold uppercase tracking-wide text-white transition hover:bg-white/20"
-        >
-            <RefreshCw className="h-4 w-4"/> Configure New Agent
-        </button>
+      <div className="glass-panel p-6 text-center">
+        <p className="text-cyber-muted">Loading battle...</p>
       </div>
     );
-  };
+  }
 
-  const renderRunning = () => (
-    <>
-      <div className="relative h-6 rounded-full bg-black/50 overflow-hidden shadow-inner-neon">
-        <div 
-            className="h-full rounded-full bg-cyber-neon transition-all duration-300" 
-            style={{ width: `${progress}%` }}
-        ></div>
-        <div className="absolute inset-0 flex items-center justify-center text-xs font-mono text-black">
-            SIMULATION IN PROGRESS...
+  if (battleInfo.isFinalized) {
+    const isWinner = battleInfo.winner.toLowerCase() === config.assetFocus.toLowerCase(); // Placeholder
+
+    return (
+      <div className="glass-panel p-6">
+        <header className="flex items-center gap-2 mb-4">
+          {isWinner ? (
+            <Trophy className="h-6 w-6 text-yellow-400" />
+          ) : (
+            <AlertTriangle className="h-6 w-6 text-red-400" />
+          )}
+          <h2 className="text-xl font-semibold uppercase tracking-widest">
+            Battle Complete
+          </h2>
+        </header>
+
+        <div className={`p-6 rounded-lg text-center ${
+          isWinner 
+            ? 'bg-green-600/20 border-2 border-green-400/50' 
+            : 'bg-red-600/20 border-2 border-red-400/50'
+        }`}>
+          <p className="text-2xl font-bold mb-2">
+            {isWinner ? '🏆 VICTORY!' : '💀 DEFEATED'}
+          </p>
+          <p className="text-sm text-cyber-muted">
+            Winner: {battleInfo.winner.slice(0, 8)}...
+          </p>
+          <p className="text-sm text-cyber-muted mt-1">
+            Final P&L: {(battleInfo.winningPnL / 100).toFixed(2)}%
+          </p>
+        </div>
+
+        <div className="mt-4 text-center">
+          <p className="text-xs text-cyber-muted">
+            Check the leaderboard for final standings
+          </p>
         </div>
       </div>
-
-      <div className="mt-6 space-y-4">
-        <div className="flex justify-between items-center glass-panel p-4">
-          <h4 className="text-lg font-semibold text-cyber-accent">YOUR AGENT</h4>
-          <span className="text-sm uppercase text-cyber-muted">Risk: {config.riskLevel}%</span>
-        </div>
-        
-        <div className="flex justify-between items-center glass-panel p-4">
-          <h4 className="text-lg font-semibold text-red-500">MOCK OPPONENT</h4>
-          <span className="text-sm uppercase text-cyber-muted">Risk: {mockOpponentConfig.riskLevel}%</span>
-        </div>
-      </div>
-    </>
-  );
+    );
+  }
 
   return (
     <div className="glass-panel p-6">
-      <header className="flex items-center gap-2 mb-4">
-        <Zap className="h-5 w-5 text-cyber-neon" />
-        <h2 className="text-xl font-semibold uppercase tracking-widest">
-          Battle Arena
-        </h2>
+      <header className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-2">
+          <Zap className="h-5 w-5 text-cyber-neon animate-pulse" />
+          <h2 className="text-xl font-semibold uppercase tracking-widest">
+            Battle In Progress
+          </h2>
+        </div>
+        <div className="flex items-center gap-2 text-cyber-accent">
+          <Clock className="h-4 w-4" />
+          <span className="font-mono text-lg font-bold">
+            {formatTime(timeRemaining)}
+          </span>
+        </div>
       </header>
-      
-      {status === "FINISHED" ? renderResult() : renderRunning()}
+
+      <div className="space-y-4">
+        <div className="glass-panel p-4 bg-cyber-neon/5">
+          <p className="text-xs uppercase tracking-wide text-cyber-muted mb-2">
+            Your Configuration
+          </p>
+          <div className="grid grid-cols-3 gap-2 text-sm">
+            <div>
+              <p className="text-cyber-muted text-xs">Risk</p>
+              <p className="font-bold text-cyber-neon">{config.riskLevel}%</p>
+            </div>
+            <div>
+              <p className="text-cyber-muted text-xs">Frequency</p>
+              <p className="font-bold text-cyber-neon">{config.tradeFrequency}%</p>
+            </div>
+            <div>
+              <p className="text-cyber-muted text-xs">Focus</p>
+              <p className="font-bold text-cyber-accent">{config.assetFocus}</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="text-center py-8">
+          <div className="inline-flex items-center gap-2 text-cyber-accent animate-pulse">
+            <div className="h-2 w-2 rounded-full bg-cyber-accent" />
+            <p className="text-sm uppercase tracking-wider">
+              Your agent is trading live...
+            </p>
+            <div className="h-2 w-2 rounded-full bg-cyber-accent" />
+          </div>
+          <p className="text-xs text-cyber-muted mt-2">
+            Watch the leaderboard for real-time updates
+          </p>
+        </div>
+
+        <div className="border-t border-cyber-muted/20 pt-4">
+          <p className="text-xs text-cyber-muted text-center">
+            Battle ends in {formatTime(timeRemaining)} or when all agents finish trading
+          </p>
+        </div>
+      </div>
     </div>
   );
 }

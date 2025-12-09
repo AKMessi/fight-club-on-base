@@ -9,18 +9,21 @@ import {
 } from "wagmi";
 import { parseEther } from "viem";
 import { BotConfig as BotConfigForm } from "@/components/BotConfig";
-import { LobbyList } from "@/components/LobbyList";
+import { LiveLeaderboard } from "@/components/LiveLeaderboard";
 import { BattleArena } from "@/components/BattleArena";
 import type { BotConfig } from "@/lib/engine";
 
-// ---------------------------------------------------------
-// Contract Address (Your deployed address from Remix)
-// ---------------------------------------------------------
-const CONTRACT_ADDRESS = "0xd007D58E03F66162A5AFAeF16A4ca8E5BBE658c6";
+// UPDATED: Use environment variable
+const CONTRACT_ADDRESS = (process.env.NEXT_PUBLIC_CONTRACT_ADDRESS || "0xd007D58E03F66162A5AFAeF16A4ca8E5BBE658c6") as `0x${string}`;
+const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:3001";
 
 const CONTRACT_ABI = [
   {
-    inputs: [],
+    inputs: [
+      { name: "riskLevel", type: "uint8" },
+      { name: "tradeFrequency", type: "uint8" },
+      { name: "assetFocus", type: "uint8" }
+    ],
     name: "enterArena",
     outputs: [],
     stateMutability: "payable",
@@ -29,35 +32,54 @@ const CONTRACT_ABI = [
 ] as const;
 
 export default function DashboardPage() {
-  type GameState = "CONFIG" | "FIGHT" | "RESULT";
+  type GameState = "CONFIG" | "WAITING" | "BATTLE" | "RESULT";
 
-  const { isConnected } = useAccount();
+  const { isConnected, address } = useAccount();
   const [gameState, setGameState] = useState<GameState>("CONFIG");
   const [currentConfig, setCurrentConfig] = useState<BotConfig>({
     riskLevel: 50,
     tradeFrequency: 40,
     assetFocus: "Memecoin"
   });
+  const [battleInfo, setBattleInfo] = useState<any>(null);
 
-  // Web3 Hooks for Payment
   const {
     data: hash,
     writeContract,
-    isPending: isWriteLoading, // FIXED: Changed from isLoading to isPending
+    isPending: isWriteLoading,
     error: writeError
   } = useWriteContract();
+  
   const {
-    isPending: isConfirming, // FIXED: Changed from isLoading to isPending
+    isPending: isConfirming,
     isSuccess: isConfirmed,
     error: confirmError
   } = useWaitForTransactionReceipt({
     hash
   });
 
-  // Start game after payment confirms
+  // Fetch current battle info
+  useEffect(() => {
+    const fetchBattleInfo = async () => {
+      try {
+        const response = await fetch(`${BACKEND_URL}/api/battle/current`);
+        const data = await response.json();
+        setBattleInfo(data);
+      } catch (error) {
+        console.error('Failed to fetch battle info:', error);
+      }
+    };
+
+    fetchBattleInfo();
+    const interval = setInterval(fetchBattleInfo, 10000); // Update every 10s
+
+    return () => clearInterval(interval);
+  }, []);
+
+  // Move to waiting state after payment confirms
   useEffect(() => {
     if (isConfirmed) {
-      setGameState("FIGHT");
+      setGameState("WAITING");
     }
   }, [isConfirmed]);
 
@@ -69,17 +91,28 @@ export default function DashboardPage() {
 
     setCurrentConfig(config);
 
-    // Trigger the Payment (0.001 ETH)
+    // Map asset focus to uint8
+    const assetFocusMap = {
+      'BlueChip': 0,
+      'Layer2': 1,
+      'Memecoin': 2,
+    };
+
+    // Call smart contract with config
     writeContract({
       address: CONTRACT_ADDRESS,
       abi: CONTRACT_ABI,
       functionName: "enterArena",
+      args: [
+        config.riskLevel,
+        config.tradeFrequency,
+        assetFocusMap[config.assetFocus]
+      ],
       value: parseEther("0.001")
     });
   };
 
   const handleReset = () => setGameState("CONFIG");
-  const handleComplete = () => setGameState("RESULT");
 
   const isProcessing = isWriteLoading || isConfirming;
   const txError = writeError || confirmError;
@@ -95,8 +128,7 @@ export default function DashboardPage() {
             Fight Club
           </h1>
           <p className="mt-2 max-w-2xl text-sm text-cyber-muted">
-            Configure AI agents, drop into Base, and let them battle in a live
-            market sim.
+            Configure AI agents, drop into Base, and battle for the prize pool.
           </p>
         </div>
         <div className="flex items-center gap-3 self-start">
@@ -104,17 +136,34 @@ export default function DashboardPage() {
         </div>
       </header>
 
+      {/* Battle Info Banner */}
+      {battleInfo && (
+        <div className="glass-panel p-4">
+          <div className="flex justify-between items-center">
+            <div>
+              <p className="text-xs uppercase tracking-wide text-cyber-muted">Current Battle #{battleInfo.battleId}</p>
+              <p className="text-lg font-bold text-cyber-neon">{battleInfo.players.length} / 100 Players</p>
+            </div>
+            <div className="text-right">
+              <p className="text-xs uppercase tracking-wide text-cyber-muted">Prize Pool</p>
+              <p className="text-lg font-bold text-cyber-accent">{battleInfo.prizePool} ETH</p>
+            </div>
+          </div>
+        </div>
+      )}
+
       <section className="grid gap-6 lg:grid-cols-[2fr_1fr]">
-        <LobbyList />
+        <LiveLeaderboard />
+        
         <div className="space-y-3">
           <div className="rounded-full border border-cyber-neon/30 bg-cyber-neon/5 px-3 py-1 text-xs uppercase tracking-[0.25em] text-cyber-muted">
             {gameState === "CONFIG"
-              ? isProcessing
-                ? "PROCESSING PAYMENT..."
-                : "CONFIGURE AGENT"
-              : gameState === "FIGHT"
-                ? "BATTLE IN PROGRESS"
-                : "RESULTS"}
+              ? isProcessing ? "PROCESSING PAYMENT..." : "CONFIGURE AGENT"
+              : gameState === "WAITING"
+                ? "WAITING FOR BATTLE START"
+                : gameState === "BATTLE"
+                  ? "BATTLE IN PROGRESS"
+                  : "RESULTS"}
           </div>
 
           {txError && (
@@ -129,26 +178,38 @@ export default function DashboardPage() {
 
           {isProcessing && (
             <div className="glass-panel animate-pulse border border-cyber-accent/50 p-8 text-center">
-              <p className="text-xl font-bold text-cyber-accent">CONFIRMING ENTRY...</p>
+              <p className="text-xl font-bold text-cyber-accent">JOINING BATTLE...</p>
               <p className="mt-2 text-xs text-cyber-muted">
                 Waiting for block confirmation
               </p>
             </div>
           )}
 
-          {gameState === "FIGHT" && (
-            <BattleArena
-              config={currentConfig}
-              onReset={handleReset}
-              onComplete={handleComplete}
-            />
+          {gameState === "WAITING" && (
+            <div className="glass-panel p-6 text-center">
+              <div className="animate-pulse">
+                <p className="text-xl font-bold text-cyber-neon">✅ JOINED!</p>
+                <p className="mt-2 text-sm text-cyber-muted">
+                  Waiting for {100 - (battleInfo?.players.length || 0)} more players...
+                </p>
+                <p className="mt-4 text-xs text-cyber-muted">
+                  Battle starts automatically when 100 players join, or admin can start manually.
+                </p>
+              </div>
+              <button 
+                onClick={handleReset}
+                className="mt-6 text-sm text-cyber-accent hover:text-cyber-neon"
+              >
+                Configure Another Agent
+              </button>
+            </div>
           )}
 
-          {gameState === "RESULT" && (
+          {gameState === "BATTLE" && battleInfo && (
             <BattleArena
+              battleId={battleInfo.battleId}
               config={currentConfig}
-              onReset={handleReset}
-              onComplete={() => {}}
+              onComplete={() => setGameState("RESULT")}
             />
           )}
         </div>
