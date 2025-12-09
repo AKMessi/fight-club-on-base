@@ -4,6 +4,10 @@
   "private": true,
   "type": "module",
   "packageManager": "pnpm@9.1.0",
+  "browser": {
+    "@react-native-async-storage/async-storage": false,
+    "pino-pretty": false
+  },
   "scripts": {
     "dev": "next dev",
     "build": "next build",
